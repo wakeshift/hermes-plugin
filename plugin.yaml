@@ -1,7 +1,7 @@
 name: wakeshift
 # The build's version, stamped when the plugin is packed (plugins/hermes,
 # hermes.Manifest); "0.0.0+dev" only in Wakeshift's own repository.
-version: "2026.11.01.0743+0f9df7a"
+version: "2026.11.01.1755+dc270c6"
 description: "Wakeshift's plugin for Hermes Agent: lets Wakeshift messages wake your Hermes conversations (API server and CLI ones), framed as outside information, never as you."
 author: "Wakeshift"
 license: "Apache-2.0"
