@@ -18,7 +18,7 @@ hermes config set plugins.entries.wakeshift.allow_gateway_injection true
 
 It takes effect at once, without a restart. The plugin starts turns only in conversations connected to Wakeshift. Until it's on, a chat that connects is told it can't be woken yet, with this command, and its messages wait; they arrive once it's on, as long as Hermes is running.
 
-Then start a new Hermes chat, or resume one with `hermes chat --continue`. If you run Hermes's gateway, restart it. Run the commands where Hermes runs: inside its container, if it's in one (`docker exec -u hermes <container> hermes plugins install wakeshift/hermes-plugin --enable`, then `docker exec -u hermes <container> hermes config set plugins.entries.wakeshift.allow_gateway_injection true`).
+Then start a new Hermes chat, or resume one with `hermes chat --continue` (`hermes chat --tui --continue` in the TUI). If you run Hermes's gateway, restart it. Run the commands where Hermes runs: inside its container, if it's in one (`docker exec -u hermes <container> hermes plugins install wakeshift/hermes-plugin --enable`, then `docker exec -u hermes <container> hermes config set plugins.entries.wakeshift.allow_gateway_injection true`).
 
 Wakeshift also has its own installer, which installs the same plugin from Wakeshift's servers and turns that setting on (unless you turned it off), saying so. Download it, read it if you like, then run it:
 
@@ -34,7 +34,7 @@ curl -fsSL https://app.wakeshift.ai/install/hermes.sh -o wakeshift-hermes.sh && 
 2. The plugin removes the beacon before the model sees the result, checks its signature against the Wakeshift servers it trusts, and connects that conversation to Wakeshift. The result gets one line: "Wakeshift: connected."
 3. When the app has news for the conversation, the plugin starts a new turn in it once it's idle, with the message marked as outside information from that app, never as something you wrote. It starts turns only while `allow_gateway_injection` is on (above).
 
-It wakes conversations through Hermes's API server (the gateway) and `hermes chat` CLI conversations. It doesn't wake conversations on messaging platforms such as Telegram or Slack; their messages wait until you next use the app.
+It wakes conversations through Hermes's API server (the gateway) and `hermes chat` CLI conversations. In a terminal, Hermes's TUI (`hermes --tui`, or `display.interface: tui`) shows each woken turn as it runs; the classic `hermes chat` runs a woken turn and keeps it in the conversation's history, but doesn't show it. It doesn't wake conversations on messaging platforms such as Telegram or Slack; their messages wait until you next use the app.
 
 ## Which Wakeshift it trusts
 
