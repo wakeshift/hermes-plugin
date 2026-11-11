@@ -29,6 +29,10 @@ be tested without them (``__init__.register`` wires it in).
    - TUI sessions (`hermes --tui`, platform "tui"), from 0.22.3: local sessions
      of the same gateway, woken as CLI ones are. The TUI shows the woken turn;
      the classic CLI runs it but doesn't show it.
+   - Hermes Desktop chats (Nous's Electron app, platform "desktop"), from
+     0.22.3: local sessions of the same gateway too (route key
+     agent:<profile>:local:dm:…), woken as CLI ones are, behind the same
+     setting, which an install from the app leaves off.
    - Telegram and Discord direct messages, from 0.22.3: a plugin turn in the
      session named by its route key, as for CLI ones (the same setting, the
      same acknowledgement). Only a key that proves a one-to-one direct message
@@ -102,8 +106,8 @@ MISSING_CRYPTOGRAPHY = ("Hermes's Python environment is missing the cryptography
 # The chat connected, but this Hermes won't let the plugin start its turns
 # (cant_wake says why, and the fix).
 NOTE_CANT_WAKE = "Wakeshift: connected, but new messages can't wake this conversation yet. {}"
-NOTE_UNSUPPORTED = ("Wakeshift: Hermes can't wake {} conversations yet (only API server, CLI and TUI ones, and "
-                    "Telegram and Discord direct messages), so new messages wait until you next use this app's tools.")
+NOTE_UNSUPPORTED = ("Wakeshift: Hermes can't wake {} conversations yet (only API server, CLI, TUI and Desktop ones, "
+                    "and Telegram and Discord direct messages), so new messages wait until you next use this app's tools.")
 # A chat on a platform the plugin wakes that it won't wake (unwakeable says why).
 NOTE_UNWAKEABLE = "Wakeshift: didn't connect this conversation. {}"
 # A beacon in a turn that started before the plugin loaded (it was installed
@@ -139,13 +143,13 @@ STARTED_FOR = 7 * 24 * 3600
 # Platforms whose waker only queues the message (the CLI's input queue, or a
 # plugin turn in a local session): it's done once the next turn in that
 # session starts, not when it's queued.
-QUEUES = {"cli", "tui", "telegram", "discord"}
+QUEUES = {"cli", "tui", "desktop", "telegram", "discord"}
 
 
-# A local chat's interfaces: one gateway's classic CLI and Ink TUI chats are
-# the same local sessions, so a chat connected in one and resumed in the
-# other (`hermes chat --tui --continue`) stays connected.
-LOCAL = {"cli", "tui"}
+# A local chat's interfaces: one gateway's classic CLI, Ink TUI and Hermes
+# Desktop chats are the same local sessions, so a chat connected in one and
+# resumed in another (`hermes chat --tui --continue`) stays connected.
+LOCAL = {"cli", "tui", "desktop"}
 
 
 def _resumed_as(saved: str, platform: str) -> str:
@@ -351,7 +355,7 @@ class Session:
 class Wakeshift:
     """The plugin's state in one Hermes process.
 
-    wakers maps a platform ("api_server", "cli", "tui") to a function
+    wakers maps a platform ("api_server", "cli", "tui", "desktop"…) to a function
     (session, framed text, batch id) -> accepted. route() is Hermes's route
     key for the session whose hook is running ("" if it has none);
     cant_wake(platform) says why this Hermes won't let the plugin start that

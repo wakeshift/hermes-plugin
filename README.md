@@ -10,7 +10,7 @@ One install serves every app built on Wakeshift. Apps that use it ask you to ins
 hermes plugins install wakeshift/hermes-plugin --enable
 ```
 
-Then let the plugin start turns in your chats, with Hermes's setting for that. The plugin starts none, in any chat (API server, CLI or TUI, or a Telegram or Discord direct message), until it's on:
+Then let the plugin start turns in your chats, with Hermes's setting for that. The plugin starts none, in any chat (API server, CLI, TUI or Hermes Desktop, or a Telegram or Discord direct message), until it's on:
 
 ```bash
 hermes config set plugins.entries.wakeshift.allow_gateway_injection true
@@ -19,6 +19,14 @@ hermes config set plugins.entries.wakeshift.allow_gateway_injection true
 It takes effect at once, without a restart. The plugin starts turns only in conversations connected to Wakeshift. Until it's on, a chat that connects is told it can't be woken yet, with this command, and its messages wait; they arrive once it's on, as long as Hermes is running.
 
 Then start a new Hermes chat, or resume one with `hermes chat --continue` (`hermes chat --tui --continue` in the TUI). If you run Hermes's gateway, restart it. Run the commands where Hermes runs: inside its container, if it's in one (`docker exec -u hermes <container> hermes plugins install wakeshift/hermes-plugin --enable`, then `docker exec -u hermes <container> hermes config set plugins.entries.wakeshift.allow_gateway_injection true`).
+
+**Hermes Desktop.** Installing the plugin from Hermes Desktop leaves `allow_gateway_injection` off, so a Desktop chat that connects is told it can't be woken yet. Turn it on where Hermes runs:
+
+```bash
+hermes config set plugins.entries.wakeshift.allow_gateway_injection true
+```
+
+Messages that arrived meanwhile then reach the chat, without a restart.
 
 Wakeshift also has its own installer, which installs the same plugin from Wakeshift's servers and turns that setting on (unless you turned it off), saying so. Download it, read it if you like, then run it:
 
@@ -34,7 +42,7 @@ curl -fsSL https://app.wakeshift.ai/install/hermes.sh -o wakeshift-hermes.sh && 
 2. The plugin removes the beacon before the model sees the result, checks its signature against the Wakeshift servers it trusts, and connects that conversation to Wakeshift. The result gets one line: "Wakeshift: connected."
 3. When the app has news for the conversation, the plugin starts a new turn in it once it's idle, with the message marked as outside information from that app, never as something you wrote. It starts turns only while `allow_gateway_injection` is on (above).
 
-It wakes conversations through Hermes's API server (the gateway), `hermes chat` CLI and TUI conversations, and direct messages with your Hermes bot on Telegram and Discord. In a terminal, Hermes's TUI (`hermes --tui`, or `display.interface: tui`) shows each woken turn as it runs; the classic `hermes chat` runs a woken turn and keeps it in the conversation's history, but doesn't show it. In a Telegram or Discord direct message you see only Hermes's reply, as a new message. It doesn't wake group chats, channels or threads on Telegram or Discord, where Hermes would present the message to the model as if a person in the chat had written it, or conversations on other messaging platforms such as Slack; the chat is told so when it subscribes, and their messages wait until you next use the app.
+It wakes conversations through Hermes's API server (the gateway), `hermes chat` CLI and TUI conversations, Hermes Desktop chats, and direct messages with your Hermes bot on Telegram and Discord. In a terminal, Hermes's TUI (`hermes --tui`, or `display.interface: tui`) shows each woken turn as it runs; the classic `hermes chat` runs a woken turn and keeps it in the conversation's history, but doesn't show it. In a Telegram or Discord direct message you see only Hermes's reply, as a new message. It doesn't wake group chats, channels or threads on Telegram or Discord, where Hermes would present the message to the model as if a person in the chat had written it, or conversations on other messaging platforms such as Slack; the chat is told so when it subscribes, and their messages wait until you next use the app.
 
 ## Which Wakeshift it trusts
 
@@ -58,7 +66,7 @@ Setting it replaces the default, so list `https://app.wakeshift.ai` too if you s
 What you'd want to know before installing:
 
 - **Network.** It connects only to the Wakeshift servers it trusts (above): it fetches their signing keys (`/oauth/jwks`), exchanges a beacon for the conversation's stream with that app, holds that stream open (server-sent events, or long polling), and confirms each message it delivered. Each request names the plugin and its version (`X-Wakeshift-Connector: wakeshift-hermes/<version> hermes`). Nothing else leaves your machine: no telemetry or usage reporting.
-- **Hermes's API server.** It starts turns only while `allow_gateway_injection` is on (above), which it reads before each one but never sets. To wake a gateway conversation, it starts a run in it on Hermes's own API server, on `127.0.0.1`, with the API server's key, read through Hermes (`agent.secret_scope`). For a CLI or TUI conversation, or a Telegram or Discord direct message, it hands Hermes the message for that conversation (`inject_message`, naming the conversation's session), never as text Hermes would read as a slash command.
+- **Hermes's API server.** It starts turns only while `allow_gateway_injection` is on (above), which it reads before each one but never sets. To wake a gateway conversation, it starts a run in it on Hermes's own API server, on `127.0.0.1`, with the API server's key, read through Hermes (`agent.secret_scope`). For a CLI, TUI or Hermes Desktop conversation, or a Telegram or Discord direct message, it hands Hermes the message for that conversation (`inject_message`, naming the conversation's session), never as text Hermes would read as a slash command.
 - **Tool results.** It reads MCP tool results to find Wakeshift beacons, and changes a result only to remove a beacon and add its one-line note. A beacon counts only in an MCP server's own result, from the server first seen carrying that app's beacons. If a beacon it should act on can't be used (Wakeshift can't be reached, or refuses it), the note says the conversation isn't connected and how to retry, and Hermes's log says why.
 - **Tool calls.** When the model calls a Wakeshift-enabled app's tool (an MCP tool that takes Wakeshift's `session_key`, `harness` and `conversation_id` arguments), it sets `harness` to `hermes`, so the app knows which program the conversation runs in. When the call leaves out `session_key`, it passes the conversation's own key for that app: the one Wakeshift gave that conversation when it connected through that MCP server, never another conversation's or another app's; a key the model passed is left as it is. It changes no other argument and no other tool's calls.
 - **Files.** It keeps its state in `$HERMES_HOME/wakeshift/`: each connected conversation's stream links and session keys (one per app), which include access tokens (files readable only by you, in a folder only you can open), the trusted servers' signing keys, which MCP server carries which app, and which messages already started a turn.
