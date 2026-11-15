@@ -277,6 +277,18 @@ def messaging_waker(ctx, ws, allowed):
     return _keyed_waker(ctx, ws, allowed, "messaging", unfit=unfit)
 
 
+def gateway_resumes(one_gateway: bool) -> tuple:
+    """The platforms whose connected conversations a gateway listens for again
+    when it starts (Wakeshift.resume). Its API server's always. Where one
+    gateway runs every local chat and messaging session (0.22.3 and later),
+    theirs too: their turns run there, so a CLI, TUI or Desktop chat connected
+    before a restart (in the turn that installed the plugin, say) is woken
+    once it's resumed, without the user first writing in it. Before that,
+    each `hermes chat` loaded its own plugins and listened for its own REPL:
+    a gateway never woke those."""
+    return ("api_server",) + (("cli", "tui", "desktop") + MESSAGING if one_gateway else ())
+
+
 def register(ctx) -> None:
     from .plugin import ApiRuns, Wakeshift, fill_args, trusted_issuers
 
@@ -348,11 +360,11 @@ def register(ctx) -> None:
     except Exception:
         pass
 
-    def resume():  # the gateway's API server sessions, connected before a restart
+    def resume():  # the gateway's sessions, connected before a restart
         import time
         time.sleep(5)  # the API server comes up after plugins load
         if _gateway():
-            n = ws.resume(("api_server",))
+            n = ws.resume(gateway_resumes(one_gateway))
             if n:
                 log.info("wakeshift: listening again for %d conversation(s)", n)
 

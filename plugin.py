@@ -437,12 +437,19 @@ class Wakeshift:
                 pass
             raise
 
-    def _save_link(self, sid: str, platform: str, link: str, key: tuple = LEGACY, handle: str = "") -> None:
+    def _save_link(self, sid: str, platform: str, link: str, key: tuple = LEGACY, handle: str = "",
+                   route: str = "") -> None:
+        """Saves a conversation's link for one app. route is Hermes's route key
+        for the session, where it has one: what lets the gateway wake a local
+        or messaging conversation again after a restart (resume) before its
+        next turn names it."""
         d = {"session": sid, "platform": platform, "link": link}
         if key != LEGACY:
             d.update(issuer=key[0], app=key[1])
             if handle:
                 d["session_key"] = handle
+        if route:
+            d["route"] = route
         self._write(self._link_path(sid, key), json.dumps(d).encode())
 
     def _forget_link(self, sid: str, key: tuple = LEGACY) -> None:
@@ -466,7 +473,7 @@ class Wakeshift:
                 continue
             if not isinstance(d, dict) or not all(isinstance(d.get(k), str) and d.get(k) for k in ("session", "platform", "link")):
                 continue
-            if not all(isinstance(d.get(k, ""), str) for k in ("issuer", "app", "session_key")):
+            if not all(isinstance(d.get(k, ""), str) for k in ("issuer", "app", "session_key", "route")):
                 continue
             if self._link_path(d["session"], self._key_of(d)).name == p.name:
                 out.append(d)
@@ -773,7 +780,7 @@ class Wakeshift:
                     self.handles[(session_id, key)] = handle
                 handle = self.handles.get((session_id, key), "")
             try:
-                self._save_link(session_id, platform, link, key, handle)
+                self._save_link(session_id, platform, link, key, handle, route)
             except OSError:
                 return wire.add_note(stripped, NOTE_FAILED.format("its link couldn't be saved"))
         if legacy is not None:
@@ -794,12 +801,28 @@ class Wakeshift:
 
     def resume(self, platforms: tuple = ("api_server",)) -> int:
         """Listen again for every conversation connected before a restart, on
-        these platforms (the gateway's; a CLI resumes its own on its next turn)."""
+        these platforms (the gateway's, __init__.gateway_resumes). One woken by
+        its route key (every platform but the API server) needs the route saved
+        with its link; one saved without (by an older plugin) listens again from
+        its next turn (turn_started), as before.
+
+        A CLI, TUI or Desktop chat connected in the turn that installed the
+        plugin, then resumed after the gateway restarted, otherwise heard
+        nothing until the user next wrote in it (#754). The gateway starts a
+        plugin turn in a local session only while a chat has it open, so until
+        the chat is resumed its messages wait and are offered again, as when a
+        chat is closed while the gateway keeps running."""
         n, idle = 0, set()
         for d in self._stored():
             if d["platform"] in platforms and d["platform"] in self.wakers:
+                route = d.get("route") or ""
+                if d["platform"] != "api_server" and not route:
+                    continue
                 with self.lock:
-                    self._session(d["session"]).platform = d["platform"]
+                    s = self._session(d["session"])
+                    s.platform = d["platform"]
+                    if route and not s.route:
+                        s.route = route
                     if d.get("app") and d.get("session_key"):
                         self.handles.setdefault((d["session"], self._key_of(d)), d["session_key"])
                 if d["session"] not in idle:
@@ -844,7 +867,7 @@ class Wakeshift:
         superseded one must not overwrite the new link)."""
         with self.lock:
             if s.listeners.get(key) is l:
-                self._save_link(s.id, platform, link, key, self.handles.get((s.id, key), ""))
+                self._save_link(s.id, platform, link, key, self.handles.get((s.id, key), ""), s.route)
 
     def _gone(self, s: Session, key: tuple, l: Listener) -> None:
         with self.lock:
